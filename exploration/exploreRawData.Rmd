@@ -1,0 +1,70 @@
+---
+title: "Raw Data"
+author: "Tobias Diederich"
+date: "22 November 2016"
+output: html_document
+---
+
+```{r setup, echo = FALSE, eval=TRUE}
+source(file = 'C:/RStudioWorkspace/AllstateClaimsSeverity/scripts/initScripting.R', echo = FALSE, encoding = 'UTF-8')
+```
+
+
+```{r dataPrep, echo = TRUE, eval = TRUE}
+train.raw <- fread('C:/RStudioWorkspace/AllstateClaimsSeverity/data/train.csv', 
+                   stringsAsFactors = FALSE, showProgress = TRUE)
+test.raw <- fread('C:/RStudioWorkspace/AllstateClaimsSeverity/data/test.csv', 
+                  stringsAsFactors = FALSE, showProgress = TRUE)
+
+target <- train.raw$loss
+train.id <- train.raw$id
+test.id <- test.raw$id
+#summary(log(target + 1))
+#summary(sqrt(target))
+#summary(target^2)
+#boxCoxTrans <- BoxCoxTrans(y = (target + 1) )
+#boxCoxPreds <- predict(boxCoxTrans, target)
+#summary(boxCoxPreds)
+#describe(target)
+#skewness(log(target + 1))
+#ggplot(train.raw, aes(x=loss)) + geom_density() + xlim(0, 15000)
+
+train.raw[, c('id', 'loss') := NULL]
+test.raw[, c('id') := NULL]
+
+allData <- rbind(train.raw, test.raw)
+
+variables <- colnames(allData)
+for(variable in variables)
+{
+    print(paste("===",variable,"==="))
+    var <- allData[[variable]]
+    #print(describe(var))
+    if(is.character(var))
+    {
+        # TODO
+    }
+    else
+    {
+        # Explore Skewness
+        allTrans <- data.frame(normal = var,
+                               log1 = log(var + 1),
+                               sroot = sqrt(var),
+                               squared = var ^ 2)
+        boxCoxTrans <- BoxCoxTrans(y = (var + 1) )
+        boxCoxPreds <- predict(boxCoxTrans, var)
+        allTrans <- cbind(allTrans, boxCoxPreds)
+        
+        centerScaleModel <- preProcess(allTrans, method = c('center', 'scale'))
+        centerScaledTrans <- predict(centerScaleModel, allTrans)
+        colnames(centerScaledTrans) <- paste('cs_', colnames(centerScaledTrans), sep = '')
+        combTrans <- cbind(allTrans, centerScaledTrans)
+        skewness <- data.frame(skew = apply(combTrans, 2, skewness))
+        skewness <- data.frame(skewness, trans = rownames(skewness), row.names = NULL)
+        skewness <- arrange(skewness, abs(skew))
+        print(skewness)
+        print('')
+    }
+}
+```
+
